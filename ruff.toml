@@ -1,10 +1,11 @@
-line-length = 80
+line-length = 100
 indent-width = 4
 target-version = "py313"
-
 cache-dir = ".cache/ruff"
 
-[format]
-line-ending = "lf"
-quote-style = "double"
-indent-style = "space"
+[lint]
+select = ["I"]
+
+[lint.isort]
+lines-after-imports = 1
+lines-between-types = 1
