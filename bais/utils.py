@@ -27,7 +27,7 @@ def say(color: Color, message: str, inline: bool = False) -> None:
     suffix = "\033[0m"
 
     if inline:
-        print(prefix + message + suffix, end="", flush=True)
+        print(prefix + message + suffix, end=" ", flush=True)
     else:
         print(prefix + message + suffix)
 
@@ -35,7 +35,7 @@ def ask(prompt_type: Prompt, message: str) -> str:
     say(Color.BLUE, message, inline=True)
 
     if prompt_type == Prompt.PASSWORD:
-        return getpass.getpass("", echo_char="*")
+        return getpass.getpass("")
 
     return input()
 
