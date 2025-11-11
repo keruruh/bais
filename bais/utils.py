@@ -8,7 +8,6 @@ import time
 from enum import Enum
 from subprocess import CalledProcessError, CompletedProcess
 from subprocess import run as _run
-from typing import Optional
 
 class Color(Enum):
     RED = "31"
@@ -20,39 +19,34 @@ class Prompt(Enum):
     TEXT = "text"
     PASSWORD = "password"
 
-def say(color: Color, message: str, inline: bool = False) -> None:
+def say(color: Color, msg: str, inline: bool = False) -> None:
     code = color.value if isinstance(color, Color) else "0"
 
     prefix = "\033[1;" + code + "m[bAIS] "
     suffix = "\033[0m"
 
     if inline:
-        print(prefix + message + suffix, end=" ", flush=True)
+        print(prefix + msg + suffix, end=" ", flush=True)
     else:
-        print(prefix + message + suffix)
+        print(prefix + msg + suffix)
 
-def ask(prompt_type: Prompt, message: str) -> str:
-    say(Color.BLUE, message, inline=True)
+def ask(prompt: Prompt, msg: str) -> str:
+    say(Color.BLUE, msg, inline=True)
 
-    if prompt_type == Prompt.PASSWORD:
+    if prompt == Prompt.PASSWORD:
         return getpass.getpass("")
 
     return input()
 
-def die(message: str) -> None:
-    say(Color.RED, message)
+def die(msg: str) -> None:
+    say(Color.RED, msg)
     sys.exit(1)
 
-def run(
-        command: str,
-        die_message: Optional[str] = None,
-        check: bool = True,
-        **kwargs
-    ) -> Optional[CompletedProcess]:
+def run(cmd: str, die_msg: str | None, check: bool = True, **kwargs) -> CompletedProcess | None:
     try:
-        return _run(shlex.split(command), check=check, **kwargs)
+        return _run(shlex.split(cmd), check=check, **kwargs)
     except CalledProcessError:
-        die(die_message or f"Command '{command}' failed unexpectedly.")
+        die_msg(die_msg or f"Command '{cmd}' failed unexpectedly.")
 
 def boom(start: int) -> None:
     assert start > 0
@@ -60,3 +54,7 @@ def boom(start: int) -> None:
     for i in range(start, 0, -1):
         say(Color.YELLOW, str(i) + "...")
         time.sleep(1)
+
+def probe(disk: str) -> None:
+    run(f"partprobe {disk}", die_msg=f"Failed to probe the disk {disk}.")
+    time.sleep(1)

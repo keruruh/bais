@@ -12,26 +12,20 @@ from bais.utils import *
 
 class Base:
     def __init__(self) -> None:
-        if re.search(r"\d$", c.DISK):
-            self.part_prefix = f"{c.DISK}p"
-        else:
-            self.part_prefix = c.DISK
-
+        self.part_prefix = f"{c.DISK}p" if re.search(r"\d$", c.DISK) else c.DISK
         self.root_part_num = 3 if c.SWAP_SIZE > 0 else 2
 
     def _clear_disk(self) -> None:
-        confirm = ask(Prompt.TEXT, f"The disk {c.DISK} will be wiped. This can NOT be undone. Continue? (y/N):")
+        confirm = ask(Prompt.TEXT, f"The disk {c.DISK} will be completely wiped. Continue? (y/N):")
 
         if not confirm or confirm.lower() != "y":
             die("Script aborted by the user.")
 
-        say(Color.YELLOW, "Clearing the disk...")
+        say(Color.YELLOW, "Clearing the disk in...")
         boom(3)
 
         run(f"sgdisk --zap-all {c.DISK}")
-
-        run(f"partprobe {c.DISK}")
-        time.sleep(1)
+        probe(c.DISK)
 
     def _partition_disk(self) -> None:
         say(Color.GREEN, "Partitioning the disk...")
@@ -63,8 +57,7 @@ class Base:
                     type 2 {ROOT_GUID}
             """)
 
-        run(f"partprobe {c.DISK}")
-        time.sleep(1)
+        probe(c.DISK)
 
     def _format_partitions(self) -> None:
         say(Color.GREEN, "Formatting partitions...")
@@ -87,34 +80,34 @@ class Base:
     def _install_base(self) -> None:
         say(Color.GREEN, "Installing the base system...")
 
-        system_packages = " ".join(["base", "base-devel", "linux", "linux-firmware"])
+        required_packages = " ".join(["base", "linux", "linux-firmware"])
         basic_packages = " ".join(c.BASIC_PACKAGES)
 
-        run(f"pacstrap /mnt {system_packages} {basic_packages}", die_message="Pacstrap failed!")
+        run(f"pacstrap /mnt {required_packages} {basic_packages}", die_msg="Pacstrap failed!")
 
     def _generate_fstab(self) -> None:
         say(Color.GREEN, "Generating fstab...")
 
-        with open(pathlib.Path("/mnt/etc/fstab"), "w", encoding="utf-8") as fstab:
-            result = run("genfstab -t PARTUUID /mnt", capture_output=True, text=True, check=True)
-            lines = result.stdout.splitlines()
+        with open("/mnt/etc/fstab", "w", encoding="utf-8") as fstab:
+            result = run("genfstab -t PARTUUID /mnt", capture=True, text=True)
 
+            lines = result.stdout.splitlines()
             new_lines = []
 
-            for l in lines:
-                if re.search(r"\s/boot(\s|/efi)", l):
-                    if "fmask=0077" not in l and "dmask=0077" not in l:
-                        l = re.sub(r"(defaults|vfat|ext4|xfs)", r"\1,fmask=0077,dmask=0077", l)
+            for line in lines:
+                if re.search(r"\s/boot(\s|/efi)", line) and (
+                    ["fmask=0077", "dmask=0077"] not in line
+                ):
+                    line = re.sub(r"(defaults|vfat|ext4|xfs)", r"\1,fmask=0077,dmask=0077", line)
 
-                new_lines.append(l)
+                new_lines.append(line)
 
             fstab.write("\n".join(new_lines) + "\n")
 
-        # Remount /boot securely.
         result = run("mountpoint --quiet /mnt/boot", check=False, capture_output=True)
 
         if result.returncode == 0:
-            run("umount /mnt/boot", check=True)
+            run("umount /mnt/boot")
 
         run(f"mount --options uid=0,gid=0,fmask=0077,dmask=0077 {self.part_prefix}1 /mnt/boot")
 
@@ -156,7 +149,7 @@ class Base:
 
     def _copy_files(self) -> None:
         script_path = pathlib.Path(__file__).parent.parent
-        mount_path = pathlib.Path("/mnt/bais")
+        mount_path = "/mnt/bais"
 
         shutil.copytree(script_path, mount_path, dirs_exist_ok=True)
 
@@ -167,7 +160,7 @@ class Base:
         result = run("mount", text=True, capture_output=True)
 
         if c.DISK in result.stdout:
-            die(f"The disk {c.DISK} is currently mounted! Unmount and try again.")
+            die(f"The disk {c.DISK} is currently mounted! Unmount it first.")
 
         run(f"loadkeys {c.KEYMAP}")
         run(f"timedatectl set-ntp true")
