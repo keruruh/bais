@@ -1,0 +1,7 @@
+.cache/
+.venv/
+
+# Python stuff.
+__pycache__/
+*.py[codz]
+*$py.class

@@ -1,0 +1,10 @@
+line-length = 80
+indent-width = 4
+target-version = "py313"
+
+cache-dir = ".cache/ruff"
+
+[format]
+line-ending = "lf"
+quote-style = "double"
+indent-style = "space"
